@@ -21,7 +21,7 @@ def discover_devices():
     zeroconf = Zeroconf()
     handler = scanHandler()
 
-    ServiceBrowser(zeroconf, "_pbroadcaster._tcp.local.", handler)
+    ServiceBrowser(zeroconf, "_broadcaster._tcp.local.", handler)
     time.sleep(2)
     
     zeroconf.close()
@@ -29,9 +29,7 @@ def discover_devices():
 
 def publish_devices():
     devices = discover_devices()
-    print("Devices:")
-    for name, info in devices.items():
-        print(f"Service Name: {name}")
-        print(f"IP address: {info.server}")
-        print(f"Port: {info.port}")
-        print(f"Binary IP address: {info.addresses[0]}")
+    if len(devices) > 0:
+        for name, info in devices.items():
+            return name, info.addresses[0], info.port
+    return None, None, None
