@@ -1,4 +1,4 @@
-from connection_manager import broadcast_connection, discover_mDNS, establish_connection
+from connection_manager import broadcast_connection, discover_mDNS, establish_connection, key_exchange_init
 from message_manager import send_msg, receive_msg
 
 def search_for_connection():
@@ -10,6 +10,7 @@ def search_for_connection():
 if __name__ == "__main__":
     #get socket
     outgoing_socket = None
+    ui = None
     while outgoing_socket == None:
         print("Would you rather broadcast port and wait a connection or scan for an available port to connect to?")
         ui = input("Please type 'b' to broadcast, or 's' to scan\n")
@@ -22,6 +23,10 @@ if __name__ == "__main__":
     if outgoing_socket is None:
         raise ValueError("Outgoing socket failed to be established")
     else:
+        #initiate key exchange
+        if ui == 's':
+            key = key_exchange_init(outgoing_socket)
+        """
         option = None
         while option == None:
             print("Would you rather send a message first or wait to receive one?")
@@ -34,4 +39,5 @@ if __name__ == "__main__":
             else:
                 print('incorrect input. Please try again')
                 option = None
+        """
         outgoing_socket.close()

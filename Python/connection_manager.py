@@ -1,7 +1,7 @@
 import socket
 import zeroconf
-import time
 from scanner import publish_devices
+from message_manager import send_msg, receive_msg
 
 #broadcast TCP connection
 #returns socket
@@ -85,6 +85,60 @@ def wait_for_incoming():
     return java_outgoing_socket
 
 #key exchange
+def key_exchange_init(to_socket):
+    p_public = None
+    a_public = None
+    a_private = None
+    A_var = None
+    B_var = None
+
+    #public keys
+    while p_public == None:
+        p_public = input("Please suggest a public key (p parameter), type 'r' to generate one randomly")
+        if p_public == 'r':
+            p_public = "random prime p-public key"
+        elif valid_key(p_public) != True:
+            p_public = None
+            print("key invalid")
+    print(f"    p_public: {p_public}")
+    while a_public == None:
+        a_public = input("Please suggest a public key (alpha parameter), type 'r' to generate one randomly")
+        if a_public == 'r':
+            a_public = "random a-public key"
+        elif valid_key(a_public, p_public) != True: #up to p-2
+            a_public = None
+            print("key invalid")
+    print(f"    a_public: {a_public}")
+    send_msg(p_public, to_socket)
+    send_msg(a_public, to_socket)
+    print("Public keys sent to client")
+
+    #private key
+    while a_private == None:
+        a_private = input("Please suggest a private key, type 'r' to generate one randomly")
+        if a_private == 'r':
+            a_private = "random a-public key"
+        elif valid_key(a_private, p_public) != True: #up to p-2
+            a_private = None
+            print("key invalid")
+    print(f"    a_private: {a_private}")
+
+    #A variable
+    A_var = pow(a_public, a_private)%p_public
+    send_msg(A_var, to_socket)
+    print("send A to client")
+
+    #receive B
+    B_var = receive_msg(to_socket)
+    print("Received B from client")
+
+    #calculate key
+    key = pow(B_var, a_private)
+
+    return key
+
+def valid_key(key, p=None):
+    return True
 
 #key verification
 

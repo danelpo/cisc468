@@ -17,6 +17,8 @@ def receive_msg(s):
                 break
             print("Received:", data.decode())
             return data.decode()
+    except KeyboardInterrupt:
+        print("Shutting down receiving")
     finally:
         s.close()
     return None
