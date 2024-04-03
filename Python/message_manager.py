@@ -2,16 +2,26 @@ import socket
 import hashlib
 
 #***send message
-def send_msg(message, ip, port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        try:
-            s.connect((ip, port))
-            s.sendall(message.encode())
-            
-        except Exception as e:
-            print("Can't send message:", e)
+def send_msg(message, s):
+    try:
+        return s.send(message.encode())
+    except Exception as e:
+        print("Can't send message:", e)
 
-#***receive message
+#receive message
+def receive_msg(s):
+    try:
+        while True:
+            data = s.recv(1024)
+            if not data:
+                break
+            print("Received:", data.decode())
+            return data.decode()
+    except KeyboardInterrupt:
+        print("Shutting down receiving")
+    finally:
+        s.close()
+    return None
 
 #save messages to device
 def save_message(message):
