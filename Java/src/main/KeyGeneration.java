@@ -3,33 +3,29 @@ import java.security.*;
 import javax.crypto.*;
 
 public class KeyGeneration {
+
+    private SecKey secKey;
+
     private KeyPairGenerator keyPairGen;
     private KeyAgreement keyAgreement;
     private KeyPair keyPair;
-    
-    public PublicKey getPublicKey() {
-        return this.keyPair.getPublic();
-    }
-
-    public PrivateKey getPrivateKey() {
-        return this.keyPair.getPrivate();
-    }
 
     public KeyGeneration() throws NoSuchAlgorithmException {
-        this.keyPairGen = KeyPairGenerator.getInstance("RSA");
-        this.keyPairGen.initialize(2048);
-        this.keyPair = keyPairGen.generateKeyPair();
-        this.keyAgreement = KeyAgreement.getInstance("DH");
+        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+        keyGen.init(256, new SecureRandom());
+        this.secKey = keyGen.generateKey();
     }
 
-    public KeyPair generateKeyPair() {
-        return keyPairGen.generateKeyPair();
+    public SecKey getSecKey(){
+        return this.secKey;
     }
 
-    public void keyRotate() {
-        KeyPair oldPair = this.keyPair;
-        this.keyPair = this.keyPairGen.generateKeyPair();
-        System.out.println("New Public Key: " + this.keyPair.getPublic().toString());
+
+    public void keyRegen() {
+        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+        keyGen.init(256, new SecureRandom());
+        this.secKey = keyGen.generateKey();
+        System.out.println("New secret key generated.");
     }
 
 }

@@ -3,7 +3,9 @@ package main;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.InetAddress;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 
 public class MainApp {
 
@@ -21,8 +23,8 @@ public class MainApp {
         System.out.println("Secure Messaging System");
         System.out.println("1. Broadcast Service");
         System.out.println("2. Discover Services");
-        System.out.println("3. Generate Key Pair");
-        System.out.println("4. Rotate Key Pair"); 
+        System.out.println("3. Generate Secret Key");
+        System.out.println("4. Rotate Secret Key"); 
         System.out.println("5. Exit");
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
@@ -37,11 +39,11 @@ public class MainApp {
                         discoverServices();
                         break;
                     case "3":
-                        System.out.println("Public Key: " + keyGeneration.getPublicKey().toString());
-                        System.out.println("Private Key: " + keyGeneration.getPrivateKey().toString());
+                        System.out.println("Secret Key: " + Base64.getEncoder().encodeToString(keyGeneration.getSecKey().getEncoded()));
                         break;
                     case "4": 
-                        keyGeneration.keyRotate();
+                        keyGeneration.keyRegen();
+                        System.out.println("Secret Key: " + Base64.getEncoder().encodeToString(keyGeneration.getSecretKey().getEncoded()));
                         break;
                     default:
                         System.out.println("Invalid option. Please try again.");

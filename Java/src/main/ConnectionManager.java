@@ -27,14 +27,14 @@ public class ConnectionManager {
             
             ServiceInfo serviceInfo = ServiceInfo.create(type, name, port, "path=index.html");
             jmdns.registerService(serviceInfo);
-            System.out.println("Service published and awaiting connections...");
+            System.out.println("Currently Broadcasting...");
 
-            try (ServerSocket serverSocket = new ServerSocket(port)) {
+            try (ServerSocket sock = new ServerSocket(port)) {
                 while (true) {
-                    Socket clientSocket = serverSocket.accept();
-                    System.out.println("Accepted connection from " + clientSocket.getRemoteSocketAddress());
-                    clients.add(clientSocket);
-                    new Thread(() -> handleClientConnection(clientSocket)).start();
+                    Socket clientSock = sock.accept();
+                    System.out.println("Connection from: " + clientSock.getRemoteSocketAddress());
+                    clients.add(clientSock);
+                    new Thread(() -> handleClientConnection(clientSock)).start();
                 }
             } finally {
                 jmdns.unregisterService(serviceInfo);
@@ -45,19 +45,19 @@ public class ConnectionManager {
         }
     }
     
-    private void handleClientConnection(Socket clientSocket) {
+    private void handleClientConnection(Socket clientSock) {
     	
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(clientSock.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 System.out.println("Received: " + line);
             }
         } catch (IOException e) {
-            System.out.println("Connection with " + clientSocket.getRemoteSocketAddress() + " closed.");
+            System.out.println("Closing connection with: " + clientSock.getRemoteSocketAddress());
         } finally {
-            clients.remove(clientSocket);
+            clients.remove(clientSock);
             try {
-                clientSocket.close();
+                clientSock.close();
             } catch (IOException e) {
             }
         }
