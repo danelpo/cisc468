@@ -71,10 +71,25 @@ public class MessageEncryption {
             return null;
         }
     }
+    public String signData(byte[] data) throws Exception {
+        PrivateKey privateKey = keyGeneration.getPrivateKey();
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(privateKey);
+        signature.update(data);
+        byte[] signatureBytes = signature.sign();
+        return Base64.getEncoder().encodeToString(signatureBytes);
+    }
+
+    public boolean verifySig(byte[] data, String signature, PublicKey publicKey) throws Exception {
+        Signature sig = Signature.getInstance("SHA256withRSA");
+        sig.initVerify(publicKey);
+        sig.update(data);
+        return sig.verify(Base64.getDecoder().decode(signature));
+    }
 
     public static SecretKey generateAESKey() throws NoSuchAlgorithmException {
         KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-        keyGenerator.init(256); // AES-256
+        keyGenerator.init(256); 
         return keyGenerator.generateKey();
     }
 }
