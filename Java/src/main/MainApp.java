@@ -4,12 +4,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.security.NoSuchAlgorithmException;
-import javax.crypto.SecretKey;
-import javax.jmdns.JmDNS;
-import javax.jmdns.ServiceEvent;
-import javax.jmdns.ServiceInfo;
-import javax.jmdns.ServiceListener;
-import java.net.InetAddress;
 
 public class MainApp {
 
@@ -28,12 +22,13 @@ public class MainApp {
         System.out.println("1. Broadcast Service");
         System.out.println("2. Discover Services");
         System.out.println("3. Generate Key Pair");
-        System.out.println("4. Exit");
-        
+        System.out.println("4. Rotate Key Pair"); 
+        System.out.println("5. Exit");
+
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
             String line;
             System.out.println("Enter your choice:");
-            while ((line = reader.readLine()) != null && !line.equals("4")) {
+            while ((line = reader.readLine()) != null && !line.equals("5")) {
                 switch (line) {
                     case "1":
                         new Thread(() -> connectionManager.BroadcastConnection()).start();
@@ -42,9 +37,11 @@ public class MainApp {
                         discoverServices();
                         break;
                     case "3":
-                        System.out.println("Generating RSA key pair...");
                         System.out.println("Public Key: " + keyGeneration.getPublicKey().toString());
                         System.out.println("Private Key: " + keyGeneration.getPrivateKey().toString());
+                        break;
+                    case "4": 
+                        keyGeneration.keyRotate();
                         break;
                     default:
                         System.out.println("Invalid option. Please try again.");

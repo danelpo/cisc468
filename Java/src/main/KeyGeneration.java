@@ -25,12 +25,11 @@ public class KeyGeneration {
     public KeyPair generateKeyPair() {
         return keyPairGen.generateKeyPair();
     }
-    public void rotateKeys() {
-        KeyPair oldKeyPair = this.keyPair;
+
+    public void keyRotate() {
+        KeyPair oldPair = this.keyPair;
         this.keyPair = this.keyPairGen.generateKeyPair();
-        
-        
-        System.out.println("Key pair rotated. New Public Key: " + this.keyPair.getPublic().toString());
+        System.out.println("New Public Key: " + this.keyPair.getPublic().toString());
     }
 
 }
