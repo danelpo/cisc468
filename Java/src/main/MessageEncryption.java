@@ -1,69 +1,80 @@
 package main;
 
+import java.security.*;
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Base64;
+import java.nio.charset.StandardCharsets;
 
 public class MessageEncryption {
 
-    public static void main(String[] args) {
-        String message = "Hello, world!";
-        byte[] key = generateRandomKey();
-        byte[] iv = generateRandomIV();
+    private KeyGeneration keyGeneration;
 
-        byte[] ciphertext = encryptMessage(message, key, iv);
-        String decryptedMessage = decryptMessage(ciphertext, key, iv);
-
-        System.out.println("Original message: " + message);
-        System.out.println("Decrypted message: " + decryptedMessage);
-        System.out.println("Message integrity: " + message.equals(decryptedMessage));
+    public MessageEncryption(KeyGeneration keyGeneration) {
+        this.keyGeneration = keyGeneration;
     }
 
-    public static byte[] generateRandomKey() {
-        SecureRandom secureRandom = new SecureRandom();
-        byte[] key = new byte[16];
-        secureRandom.nextBytes(key);
-        return key;
-    }
-
-    public static byte[] generateRandomIV() {
-        SecureRandom secureRandom = new SecureRandom();
-        byte[] iv = new byte[16];
-        secureRandom.nextBytes(iv);
-        return iv;
-    }
-
-    public static byte[] encryptMessage(String plaintext, byte[] key, byte[] iv) {
+    public String encryptWithPublicKey(String data) {
         try {
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
-            IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
-            cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
-            return cipher.doFinal(plaintext.getBytes());
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
-                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+            PublicKey publicKey = this.keyGeneration.getPublicKey();
+            Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+            cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+
+            byte[] encryptedBytes = cipher.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(encryptedBytes);
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    public static String decryptMessage(byte[] ciphertext, byte[] key, byte[] iv) {
+    public String decryptWithPrivateKey(String encryptedData) {
         try {
-            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            SecretKeySpec secretKeySpec = new SecretKeySpec(key, "AES");
-            IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
-            cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
-            byte[] decryptedBytes = cipher.doFinal(ciphertext);
-            return new String(decryptedBytes);
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
-                | InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
+            PrivateKey privateKey = this.keyGeneration.getPrivateKey();
+            Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+            cipher.init(Cipher.DECRYPT_MODE, privateKey);
+
+            byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(encryptedData));
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
+        } catch (Exception e) {
             e.printStackTrace();
             return null;
         }
+    }
+
+    public static String encryptMessage(String message, SecretKey aesKey) {
+        try {
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
+            byte[] encryptedBytes = cipher.doFinal(message.getBytes(StandardCharsets.UTF_8));
+
+            String iv = Base64.getEncoder().encodeToString(cipher.getIV());
+            String encryptedContent = Base64.getEncoder().encodeToString(encryptedBytes);
+            return String.format("{\"iv\":\"%s\",\"content\":\"%s\"}", iv, encryptedContent);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static String decryptMessage(String encryptedMessageJSON, SecretKey aesKey) {
+        try {
+            String iv = encryptedMessageJSON.split("\"iv\":\"")[1].split("\"")[0];
+            String content = encryptedMessageJSON.split("\"content\":\"")[1].split("\"")[0];
+
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(Base64.getDecoder().decode(iv)));
+            byte[] decryptedBytes = cipher.doFinal(Base64.getDecoder().decode(content));
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static SecretKey generateAESKey() throws NoSuchAlgorithmException {
+        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+        keyGenerator.init(256); // AES-256
+        return keyGenerator.generateKey();
     }
 }
