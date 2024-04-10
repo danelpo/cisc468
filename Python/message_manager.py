@@ -4,7 +4,7 @@ import hashlib
 #***send message
 def send_msg(message, s):
     try:
-        return s.send(message.encode())
+        return s.send(str(message).encode())
     except Exception as e:
         print("Can't send message:", e)
 
@@ -15,12 +15,10 @@ def receive_msg(s):
             data = s.recv(1024)
             if not data:
                 break
-            print("Received:", data.decode())
             return data.decode()
     except KeyboardInterrupt:
         print("Shutting down receiving")
-    finally:
-        s.close()
+        exit()
     return None
 
 #save messages to device
