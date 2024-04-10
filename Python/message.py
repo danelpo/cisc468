@@ -3,11 +3,10 @@ from cryptography.hazmat.primitives import padding
 import os
 
 #***build message with accordance to protocol
-def make_message(message, key):
+def package_message(message, key):
     iv = os.urandom(16)
-    ciphertext = msg_enc(message, iv, key)
-    plaintext = msg_dec(ciphertext, iv, key)
-    print(message == plaintext)
+    ciphertext = msg_enc(message.encode(), iv, key)
+    return iv + ciphertext
 
 #message encryption
 def msg_enc(plaintxt, iv, key):
@@ -20,6 +19,11 @@ def msg_enc(plaintxt, iv, key):
     enc_plaintxt = encryption_engine.update(padded_plaintxt) + encryption_engine.finalize()
 
     return enc_plaintxt
+
+def unpack_message(message, key):
+    iv = message[:16]
+    ciphertext = message[16:]
+    return msg_dec(ciphertext, iv, key)
 
 #message decryption
 def msg_dec(ciphertxt, iv, key):

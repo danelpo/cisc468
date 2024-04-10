@@ -28,18 +28,20 @@ if __name__ == "__main__":
             key = connection_manager.key_exchange_init(outgoing_socket)
         elif ui == 'b':
             key = connection_manager.key_exchange_rcv(outgoing_socket)
-        """
-        option = None
-        while option == None:
+
+        #start messaging
+        ui = None
+        while True:
             print("Would you rather send a message first or wait to receive one?")
             ui = input("Please type 's' to send, or 'r' to receive\n")
             if ui == 's':
                 message = input("Please enter message to be sent:\n")
-                send_msg(message, outgoing_socket)
+                send_msg(message, outgoing_socket, key=key)
             elif ui == 'r':
-                receive_msg(outgoing_socket)
+                msg = receive_msg(outgoing_socket, key=key)
+                print(msg)
             else:
                 print('incorrect input. Please try again')
-                option = None
-        """
+                ui = None
+        
     outgoing_socket.close()

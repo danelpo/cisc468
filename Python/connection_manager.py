@@ -5,6 +5,8 @@ from message_manager import send_msg, receive_msg
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives import hashes
 
 #broadcast TCP connection
 #returns socket
@@ -96,8 +98,7 @@ def key_exchange_init(to_socket):
     A_var = None
     B_var = None
     
-    print("Generating keys")
-    key_gen_params = dh.generate_parameters(generator=2, key_size=512, backend=default_backend())
+    key_gen_params = dh.generate_parameters(generator=2, key_size=1024, backend=default_backend())
     a_raw = key_gen_params.generate_private_key()
     p_public = key_gen_params.parameter_numbers().p
     a_public = key_gen_params.parameter_numbers().g
@@ -107,53 +108,49 @@ def key_exchange_init(to_socket):
         encryption_algorithm=serialization.NoEncryption()
     )
 
-    print(f"p_public: {p_public}")
-    print(f"a_public: {a_public}")
     send_msg(p_public, to_socket)
     p_verification = receive_msg(to_socket)
-    print(f"client repled with {p_verification}")
+    if int(p_public) != int(p_verification):
+        raise ValueError("Key returned from client is faulty")
 
     send_msg(a_public, to_socket)
     a_verification = receive_msg(to_socket)
-    print(f"client repled with {a_verification}")
-
-    print("Public keys sent to client")
-    print(f"a_private: {a_private}")
+    if int(a_public) != int(a_verification):
+        raise ValueError("Key returned from client is faulty")
 
     #A variable
     A_var = a_raw.public_key().public_numbers().y
     send_msg(A_var, to_socket)
-    print(f"A: {A_var}")
-    print("send A to client")
 
     #receive B
     B_var = None
     while B_var == None:
         B_var = receive_msg(to_socket)
-    print(f"B: {B_var}")
-    print("Received B from client")
 
     #get B object
     B = dh.DHPublicNumbers(int(B_var), dh.DHParameterNumbers(int(p_public), int(a_public))).public_key(default_backend())
 
     #calculate key
-    key = a_raw.exchange(B)
-    #key = pow(int(B_var), int(a_private))
-    print("Calculated key")
+    full_key = a_raw.exchange(B)
+    key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=16,
+            salt=None,
+            info=b'info',
+            backend=default_backend()
+        ).derive(full_key)
     print(f"key: {key}")
+    print(f"key size:{len(key)}")
 
     return key
 
 def key_exchange_rcv(from_socket):
     #public keys
     p_public = receive_msg(from_socket)
-    print(f"p_public: {p_public}")
     send_msg(p_public, from_socket)
     a_public = receive_msg(from_socket)
-    print(f"a_public: {a_public}")
     send_msg(a_public, from_socket)
     A_var = receive_msg(from_socket)
-    print(f"A_var: {A_var}")
 
     #private keys
     key_gen_params = dh.DHParameterNumbers(int(p_public), int(a_public)).parameters(default_backend())
@@ -163,15 +160,21 @@ def key_exchange_rcv(from_socket):
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption()
     )
-    print(f"a_private: {a_private}")
     B_var = B_raw.public_key().public_numbers().y
     send_msg(B_var, from_socket)
-    print(f"A: {B_var}")
     A = dh.DHPublicNumbers(int(A_var), dh.DHParameterNumbers(int(p_public), int(a_public))).public_key(default_backend())
-    key = B_raw.exchange(A)
-    #key = pow(int(B_var), int(a_private))
-    print("Calculated key")
+    
+    full_key = B_raw.exchange(A)
+    key = HKDF(
+            algorithm=hashes.SHA256(),
+            length=16,
+            salt=None,
+            info=b'info',
+            backend=default_backend()
+        ).derive(full_key)
     print(f"key: {key}")
+    return key
+    
 
 #key verification
 

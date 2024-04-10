@@ -1,21 +1,29 @@
 import socket
 import hashlib
+import message
 
 #***send message
-def send_msg(message, s):
+def send_msg(m, s, key=None):
     try:
-        return s.send(str(message).encode())
+        if key:
+            m_enc = message.package_message(m, key)
+            return s.send(m_enc)
+        else:
+            return s.send(str(m).encode())
     except Exception as e:
         print("Can't send message:", e)
 
 #receive message
-def receive_msg(s):
+def receive_msg(s, key=None):
     try:
         while True:
             data = s.recv(1024)
             if not data:
                 break
-            return data.decode()
+            if key == None:
+                return data.decode()
+            else:
+                return message.unpack_message(data, key).decode()
     except KeyboardInterrupt:
         print("Shutting down receiving")
         exit()
