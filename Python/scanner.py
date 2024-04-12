@@ -1,6 +1,8 @@
 from zeroconf import Zeroconf, ServiceBrowser
 import time
 
+#used to scan for broadcasting devices
+
 class scanHandler:
     def __init__(self):
         self.services = {}
@@ -21,6 +23,7 @@ def discover_devices():
     zeroconf = Zeroconf()
     handler = scanHandler()
 
+    #agreed upon name for broadcasting device
     ServiceBrowser(zeroconf, "_broadcaster._tcp.local.", handler)
     time.sleep(2)
     
@@ -31,5 +34,6 @@ def publish_devices():
     devices = discover_devices()
     if len(devices) > 0:
         for name, info in devices.items():
+            #what we need to establish connection
             return name, info.addresses[0], info.port
     return None, None, None

@@ -2,9 +2,14 @@ import connection_manager
 from message_manager import send_msg, receive_msg
 from message_manager import read_messages
 
+#this file is where everything is ran from. run root.py to access application
+
+#used to get socket of connected device when scanning
 def search_for_connection():
+    #get ip and port and broadcasting device
     ip, port = connection_manager.discover_mDNS()
     if ip is not None:
+        #connect to it, return socket
         outgoing_socket = connection_manager.establish_connection(ip, port)
         return outgoing_socket
 
