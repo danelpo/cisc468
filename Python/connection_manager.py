@@ -102,11 +102,6 @@ def key_exchange_init(to_socket):
     a_raw = key_gen_params.generate_private_key()
     p_public = key_gen_params.parameter_numbers().p
     a_public = key_gen_params.parameter_numbers().g
-    a_private = a_raw.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
-    )
 
     send_msg(p_public, to_socket)
     p_verification = receive_msg(to_socket)
@@ -155,11 +150,6 @@ def key_exchange_rcv(from_socket):
     #private keys
     key_gen_params = dh.DHParameterNumbers(int(p_public), int(a_public)).parameters(default_backend())
     B_raw = key_gen_params.generate_private_key()
-    a_private = B_raw.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption()
-    )
     B_var = B_raw.public_key().public_numbers().y
     send_msg(B_var, from_socket)
     A = dh.DHPublicNumbers(int(A_var), dh.DHParameterNumbers(int(p_public), int(a_public))).public_key(default_backend())

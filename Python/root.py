@@ -1,5 +1,6 @@
 import connection_manager
 from message_manager import send_msg, receive_msg
+from message_manager import read_messages
 
 def search_for_connection():
     ip, port = connection_manager.discover_mDNS()
@@ -31,15 +32,51 @@ if __name__ == "__main__":
 
         #start messaging
         ui = None
+        password = None
+        ui = print("Would you like to save all messages to file? ('y' = Yes)")
+        if ui == 'y':
+            while password == None:
+                password1 = print("Please enter password:\n")
+                password2 = print("Please confirm password:\n")
+                if password1 == password2:
+                    password = password1
+                else:
+                    print("passwords do not match. Please try again.")
+        print("If you want to read all messages saved to file, type 'read' at any point")
         while True:
             print("Would you rather send a message first or wait to receive one?")
             ui = input("Please type 's' to send, or 'r' to receive\n")
             if ui == 's':
-                message = input("Please enter message to be sent:\n")
-                send_msg(message, outgoing_socket, key=key)
+                ui = input("Please type 't' to send text, or 'f' for files\n")
+                if ui == 't':
+                    message = input("Please enter message to be sent:\n")
+                    send_msg(message, outgoing_socket, key=key, password=password)
+                elif ui == 'f':
+                    path = input("Please enter path to file:\n")
+                    with open(path, 'rb') as file:
+                        filetext = file.read()
+                    send_msg(filetext, outgoing_socket, key=key, password=password)
+                    pass
+                else:
+                    print('incorrect input. Please try again')
+                    ui = None
             elif ui == 'r':
-                msg = receive_msg(outgoing_socket, key=key)
-                print(msg)
+                ui = print("do you expect to receive text or file? 't' for text, 'f' for file")
+                if ui == 't':
+                    msg = receive_msg(outgoing_socket, key=key, password=password)
+                    print(msg)
+                elif ui == 'f':
+                    path = input("Please enter path to save file:\n")
+                    msg = receive_msg(outgoing_socket, key=key, password=password, path=path)
+                    print(f"file saved to {path}")
+                else:
+                    print('incorrect input. Please try again')
+                    ui = None
+            elif ui == 'read':
+                ui = input("Please provide password\n")
+                saved_messages = read_messages(ui)
+                for m in saved_messages:
+                    print(m)
             else:
                 print('incorrect input. Please try again')
                 ui = None
