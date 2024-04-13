@@ -1,95 +1,127 @@
 package main;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.InetAddress;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
 
 public class MainApp {
+    public static void main(String[] args) {
+        try {
+        	// Creates file to hold passwords
+            String passwordFilePath = "main/passwords.txt";
+            UserAuthentication userAuth = new UserAuthentication(passwordFilePath);
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
 
-    private KeyGeneration keyGeneration;
-    private MessageEncryption messageEncryption;
-    private ConnectionManager connectionManager;
+            if (Files.exists(Paths.get(passwordFilePath))) {
+            	// Asks if creating new password or signing in with old one
+                System.out.println("Log In (1) or Create a New User (2)?");
+                String userChoice = reader.readLine().trim();
+                if ("1".equals(userChoice)) {
+                    if (!userAuth.authenticateUser()) {
+                        System.out.println("Authentication failed. Exiting application...");
+                        return;
+                    }
+                } else if ("2".equals(userChoice)) {
+                    userAuth.setupNewUser();
+                } else {
+                    System.out.println("Invalid option selected. Exiting application...");
+                    return;
+                }
+            } else {
+                userAuth.setupNewUser();
+            }
+            
+            MessageEncryption encryption = new MessageEncryption();
+            ConnectionManager connectionManager = new ConnectionManager(encryption);
+            MessageController messageController = null;
+            String storagePath = "main/savedMessages.txt";
+            Storage storage = new Storage(encryption, storagePath);
 
-    public MainApp() throws NoSuchAlgorithmException {
-        this.keyGeneration = new KeyGeneration();
-        this.messageEncryption = new MessageEncryption(keyGeneration);
-        this.connectionManager = new ConnectionManager();
-    }
+            while (true) {
+            	// Asking user if broadcasting or discovering.
+            	// Discovery cannot find broadcaster, so the discoverer must be done on the Python end
+                System.out.println("Welcome to Text Friend Forever!");
+                System.out.println("Please choose an option:");
+                System.out.println("Broadcast (b), Discover (d), Load Messages (l), Exit (e)?");
+                String choice = reader.readLine().trim();
 
-    public void start() {
-        System.out.println("Secure Messaging System");
-        System.out.println("1. Broadcast Service");
-        System.out.println("2. Discover Services");
-        System.out.println("3. Generate Secret Key");
-        System.out.println("4. Rotate Secret Key"); 
-        System.out.println("5. Exit");
-
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
-            String line;
-            System.out.println("Enter your choice:");
-            while ((line = reader.readLine()) != null && !line.equals("5")) {
-                switch (line) {
-                    case "1":
-                        new Thread(() -> connectionManager.BroadcastConnection()).start();
+                switch (choice) {
+                    case "b":
+                        messageController = connectionManager.broadcastConnection();
+                        if (messageController != null) {
+                            interactWithUser(reader, messageController, storage);
+                        }
                         break;
-                    case "2":
-                        discoverServices();
+                    case "d":
+                        messageController = connectionManager.discoverAndConnect();
+                        if (messageController != null) {
+                            interactWithUser(reader, messageController, storage);
+                        }
                         break;
-                    case "3":
-                        System.out.println("Secret Key: " + Base64.getEncoder().encodeToString(keyGeneration.getSecKey().getEncoded()));
+                    case "l":
+                    	// Option meant to load messages saved 
+                        System.out.println("Loaded Messages:");
+                        List<String> messages = storage.readMessages();
+                        for (String message : messages) {
+                            System.out.println(message);
+                        }
+                        System.out.println("Press Enter to continue...");
+                        reader.readLine();
                         break;
-                    case "4": 
-                        keyGeneration.keyRegen();
-                        System.out.println("Secret Key: " + Base64.getEncoder().encodeToString(keyGeneration.getSecretKey().getEncoded()));
-                        break;
+                    case "e":
+                        System.out.println("Exiting application...");
+                        return;
                     default:
                         System.out.println("Invalid option. Please try again.");
                         break;
                 }
-                System.out.println("Enter your choice:");
             }
-            System.out.println("Exiting...");
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void discoverServices() {
-        try {
-            JmDNS jmdns = JmDNS.create(InetAddress.getLocalHost());
-            jmdns.addServiceListener("_broadcaster._tcp.local.", new ServiceListener() {
-                @Override
-                public void serviceResolved(ServiceEvent event) {
-                    System.out.println("Service resolved: " + event.getInfo());
-                }
-
-                @Override
-                public void serviceAdded(ServiceEvent event) {
-                    jmdns.requestServiceInfo(event.getType(), event.getName(), 1);
-                }
-
-                @Override
-                public void serviceRemoved(ServiceEvent event) {
-                    System.out.println("Service removed: " + event.getName());
-                }
-            });
-
-            System.out.println("Service discovery running...");
-            Thread.sleep(30000); 
-        } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void main(String[] args) {
-        try {
-        	MainApp controller = new MainApp();
-            controller.start();
-        } catch (NoSuchAlgorithmException e) {
-            System.err.println("Failed to initialize the system: " + e.getMessage());
+    private static void interactWithUser(BufferedReader reader, MessageController messageController, Storage storage) throws Exception {
+    	/*
+    	 * Method to interact with the user, asks if sending files and messages or receiving
+    	 * 
+    	 * @param A reader, a controller and a storage object
+    	 * @return void
+    	 * 
+    	 * */
+        while (true) {
+        	System.out.println("Type 'f' to send a file, 'rf' to receive a file, 's' to send a message, 'r' to receive a message, or 'q' to return to main menu:");
+        	String ui = reader.readLine().trim();
+        	switch (ui) {
+        	    case "f":
+        	        System.out.println("Enter the path of the file to send:");
+        	        String filePath = reader.readLine().trim();
+        	        messageController.sendFile(filePath);
+        	        break;
+        	    case "rf":
+        	        messageController.receiveFile("main/receivedFiles.bin");
+        	        System.out.println("File received and saved.");
+        	        break;
+                case "s":
+                    System.out.println("Please enter the message to be sent:");
+                    String messageToSend = reader.readLine().trim();
+                    messageController.sendMessage(messageToSend);
+                    storage.saveMessage("Sent: " + messageToSend);
+                    break;
+                case "r":
+                    String receivedMessage = messageController.receiveMessage();
+                    storage.saveMessage("Received: " + receivedMessage);
+                    System.out.println("Received message: " + receivedMessage);
+                    break;
+                case "q":
+                    System.out.println("Returning to main menu...");
+                    return;
+                default:
+                    System.out.println("Incorrect input. Please try again.");
+                    break;
+            }
         }
     }
 }

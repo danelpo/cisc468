@@ -1,106 +1,120 @@
 package main;
 
 import java.io.*;
-import javax.jmdns.ServiceInfo;
 import java.net.Socket;
+import java.util.HashSet;
+import java.util.Set;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
-import java.util.List;
-import java.util.Scanner;
-import java.util.Optional;
+
 
 public class MessageController {
+    private final Socket socket;
+    private final MessageEncryption encryption;
+    private final Set<Long> TimeStamps = new HashSet<>();
 
-    public static void main(String[] args) {
-
-        Scanner scan = new Scanner(System.in);
-        System.out.println("Enter your message:");
-        String message = scan.nextLine();
-
-        byte[] key = MessageEncryption.generateRandomKey();
-        byte[] iv = MessageEncryption.generateRandomIV(); 
-        byte[] encryptedMessage = MessageEncryption.encryptMessage(message, key, iv);
-
-        if (encryptedMessage == null) {
-            System.err.println("Error encrypting the message.");
-            return;
-        }
-        Optional<ServiceInfo> optionalServiceInfo = PeerDiscovery.getFirstDiscoveredService();
-        if (!optionalServiceInfo.isPresent()) {
-            System.err.println("No services discovered.");
-            scan.close();
-            return;
-        }
-
-        ServiceInfo serviceInfo = optionalServiceInfo.get();
-        String ip = serviceInfo.getHostAddresses()[0];
-        int port = serviceInfo.getPort();
-
-        String encryptedMessageBase64 = Base64.getEncoder().encodeToString(encryptedMessage);
-
-
-        sendMessage(encryptedMessageBase64, ip, port);
-
-        String hashedMessage = hashMessage(message);
-        if (hashedMessage != null) {
-            saveMessage(hashedMessage);
-        }
-
-        List<String> messages = readMessages();
-        if (messages != null) {
-            for (String msg : messages) {
-                System.out.println("Saved Message: " + msg);
-            }
-        }
-
-        scan.close();
+    public MessageController(Socket socket, MessageEncryption encryption) throws IOException {
+        this.socket = socket;
+        this.encryption = encryption;
     }
 
-    public static void sendMessage(String message, String ip, int port) {
-        try (Socket socket = new Socket(ip, port);
-             OutputStream outputStream = socket.getOutputStream()) {
-            outputStream.write(message.getBytes());
-        } catch (IOException e) {
-            System.err.println("Error sending the message: " + e.getMessage());
-        }
+    public void sendMessage(String message) throws Exception {
+      	/*
+    	 * Method to send encrypted message, attaches time stamp to protect against replay attacks
+    	 * and a signature for verification and integrity. "!!!!AAAABBBB!!!!" used to parse parts of message.
+    	 * 
+    	 * @param A message string
+    	 * @return void
+    	 * 
+    	 * */
+    	
+        String encryptedMessage = encryption.encryptMessage(message);
+        long timeStamp = System.currentTimeMillis();
+        String signature = encryption.signData(encryptedMessage + timeStamp);
+        String combinedMessage = encryptedMessage + "!!!!AAAABBBB!!!!" + timeStamp + "!!!!AAAABBBB!!!!" + signature;
+        
+        String encodedMessage = Base64.getEncoder().encodeToString(combinedMessage.getBytes());
+
+        // Send the message
+        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+        out.writeUTF(encodedMessage);
+        out.flush();
     }
 
-    public static String hashMessage(String message) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(message.getBytes());
-            StringBuilder hexString = new StringBuilder();
-            for (byte hashByte : hashBytes) {
-                String hex = Integer.toHexString(0xff & hashByte);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (NoSuchAlgorithmException e) {
-            System.err.println("Error hashing the message: " + e.getMessage());
-            return null;
+    public String receiveMessage() throws Exception {
+      	/*
+    	 * Method to receive encrypted message, parses encrypted message into message wiht IV, time stamp, and a signature.
+    	 * Verifies signature
+    	 * @param None
+    	 * @return encryption.decryptMessage(encryptedMessageWithIV);
+    	 * 
+    	 * */
+        DataInputStream in = new DataInputStream(socket.getInputStream());
+        String encodedMessage = in.readUTF();
+        String combinedMessage = new String(Base64.getDecoder().decode(encodedMessage));
+        String[] parts = combinedMessage.split("!!!!AAAABBBB!!!!");
+        String encryptedMessageWithIV = parts[0];
+        long timeStamp = Long.parseLong(parts[1]);
+        String signature = parts[2];
+        
+        long currentTime = System.currentTimeMillis();
+        
+        // Check for replay attacks
+        if ((currentTime - timeStamp) > 5000 || !TimeStamps.add(timeStamp)) {
+            throw new SecurityException("Old message, or possible replay attack");
         }
+
+        // Verify signature
+        boolean isVerified = encryption.verifySignature(encryptedMessageWithIV + timeStamp, signature);
+        if (!isVerified) {
+            throw new SecurityException("Signature not verified.");
+        }
+
+        // Decrypt the message (decryption method handles IV extraction)
+        return encryption.decryptMessage(encryptedMessageWithIV);
+    }
+    public void sendFile(String filePath) throws Exception {
+      	/*
+    	 * Method to send encrypted files, 
+    	 * @param A string of the filepath
+    	 * @return None
+    	 * */
+        byte[] fileData = Files.readAllBytes(Paths.get(filePath));
+
+        // Encrypt file data
+        String encryptedData = encryption.encryptMessage(new String(fileData, StandardCharsets.UTF_8));
+
+        // Send file data
+        DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+        out.writeInt(encryptedData.length()); // Send the length of the encrypted data
+        out.writeUTF(encryptedData); // Send the encrypted data
+        out.flush();
     }
 
-    public static void saveMessage(String hashedMessage) {
-        String file = "data.txt";
-        try (FileWriter writer = new FileWriter(file, true)) {
-            writer.write(hashedMessage + "\n");
-        } catch (IOException e) {
-            System.err.println("Error saving the message: " + e.getMessage());
-        }
-    }
+    public void receiveFile(String savePath) throws Exception {
+      	/*
+    	 * Method to receive encrypted files, parses encrypted message into message wiht IV, time stamp, and a signature.
+    	 * Verifies signature
+    	 * @param String of file that saves file
+    	 * @return void
+    	 * 
+    	 * */
+        DataInputStream in = new DataInputStream(socket.getInputStream());
 
-    public static List<String> readMessages() {
-        String file = "data.txt";
-        try {
-            return Files.readAllLines(Paths.get(file));
-        } catch (IOException e) {
-            System.err.println("Error reading messages: " + e.getMessage());
-            return null;
+        // Receive file
+        int length = in.readInt(); // Read the length of the incoming file data
+        if(length > 0) {
+            byte[] message = new byte[length];
+            in.readFully(message, 0, message.length); // Read the file data
+            String encryptedData = new String(message, StandardCharsets.UTF_8);
+
+            // Decrypt data
+            byte[] fileData = encryption.decryptMessage(encryptedData).getBytes(StandardCharsets.UTF_8);
+
+            // Write file to file-saving file
+            Files.write(Paths.get(savePath), fileData);
         }
     }
 }
