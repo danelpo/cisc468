@@ -39,7 +39,7 @@ public class MessageEncryption {
     	 * */
         KeyPairGenerator dhGen = KeyPairGenerator.getInstance("DH");
         AlgorithmParameterGenerator paramGen = AlgorithmParameterGenerator.getInstance("DH");
-        paramGen.init(1024);
+        paramGen.init(1024); // 1024 size used to improve efficiency
         AlgorithmParameters params = paramGen.generateParameters();
         DHParameterSpec dhParamSpec;
         try {
@@ -75,6 +75,7 @@ public class MessageEncryption {
             PublicKey receivedPublicKey = keyFactory.generatePublic(keySpec);
             
             // part that ran into trouble
+            //Would not pass this line, the DH parameters would not align
             keyAgreement.doPhase(receivedPublicKey, true);
             System.out.println("DONE");
 

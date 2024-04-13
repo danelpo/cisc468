@@ -26,7 +26,7 @@ public class MainApp {
                 } else if ("2".equals(userChoice)) {
                     userAuth.setupNewUser();
                 } else {
-                    System.out.println("Invalid option selected. Exiting application...");
+                    System.out.println("Invalid. Exiting application...");
                     return;
                 }
             } else {

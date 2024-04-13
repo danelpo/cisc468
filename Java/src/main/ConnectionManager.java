@@ -102,7 +102,7 @@ public class ConnectionManager {
     	 * Method to Connect to service
     	 * 
     	 * @param ServiceInfo
-    	 * @return socker
+    	 * @return socket
     	 * */
         Socket socket = new Socket(serviceInfo.getHostAddresses()[0], serviceInfo.getPort());
         System.out.println("Connected to service at " + serviceInfo.getHostAddresses()[0] + ":" + serviceInfo.getPort());
